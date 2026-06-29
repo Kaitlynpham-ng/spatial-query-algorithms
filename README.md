@@ -4,7 +4,7 @@ import math
 import sys
 import time
 
-points = []   # Stores every parking location as a dictionary
+points = [] 
 n = 0
 
 with open("parking.txt", 'r') as dataset:
@@ -18,7 +18,7 @@ with open("parking.txt", 'r') as dataset:
         })
         n = n + 1
 
-queries = []   # Stores every query location as a dictionary
+queries = [] 
 
 with open("query_points.txt", 'r') as dataset:
     for data in dataset.readlines():
@@ -80,8 +80,6 @@ class Node(object):
             return True                    # No child -> this is the leaf node
         else:
             return False                   # Has children -> this is an internal node
-
-# --- RTree class ---
 
 class RTree(object):
     def __init__(self):
