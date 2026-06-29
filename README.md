@@ -1,16 +1,8 @@
 # spatial-query-algorithms
 
-[part1.py](https://github.com/user-attachments/files/29473465/part1.py)
-
 import math
 import sys
 import time
-
-# LOAD DATA
-
-# Load parking location data from file
-# Each line contains: ID, X coordinate, Y coordinate
-# Data is stored as a list of dictionaries for easy field access
 
 points = []   # Stores every parking location as a dictionary
 n = 0
@@ -25,8 +17,6 @@ with open("parking.txt", 'r') as dataset:
             'y': float(data[2])      # Y coordinate
         })
         n = n + 1
-
-# Load query points from file, same as parking location
 
 queries = []   # Stores every query location as a dictionary
 
@@ -46,8 +36,6 @@ print("\n")
 
 # R-TREE FUNCTION
 
-# --- Node class ---
-
 B = 4
 
 class Node(object):
@@ -57,10 +45,6 @@ class Node(object):
         self.data_points = []    # Holds data points when this is a leaf node
         self.parent = None       # Points to the parent node; None if this is the root
         
-        # The MBR (Minimum Bounding Rectangle) stores the boundary box
-        # that completely contains all data points or child nodes under this node
-        # (x1, y1) is the lower-left corner and (x2, y2) is the upper-right corner
-        # Initialised to infinity so any real point will shrink it inward
         
         self.MBR = {
             'x1': float('inf'),   # Left boundary (min X)
@@ -70,13 +54,9 @@ class Node(object):
         }
 
     def perimeter(self):
-        # Calculate the perimeter of the MBR (used as cost metric during splitting)
-        # Formula: width + height = (x2 - x1) + (y2 - y1)
         return (self.MBR['x2'] - self.MBR['x1']) + (self.MBR['y2'] - self.MBR['y1'])
 
     def is_overflow(self):
-        # Check if a node exceeds its capacity limit B
-        # Leaf nodes and internal nodes are handled separately
         if self.is_leaf():
             if len(self.data_points) > B:   # Checking overflows of data points, B is the upper bound
                 return True                 # Node needs to be split
@@ -96,7 +76,6 @@ class Node(object):
             return False                   # This node has a parent above it
 
     def is_leaf(self):
-        # A leaf node directly holds data points and has no children
         if len(self.child_nodes) == 0:
             return True                    # No child -> this is the leaf node
         else:
@@ -122,8 +101,7 @@ class RTree(object):
 
     def add_data_point(self, node, data_point):  # Append a point to a leaf and stretch its MBR
         node.data_points.append(data_point)
-        
-        # Expand the MBR only when the new point lies outside the current boundary
+
         if data_point['x'] < node.MBR['x1']:
             node.MBR['x1'] = data_point['x']     # Extend left boundary
         if data_point['x'] > node.MBR['x2']:
@@ -150,7 +128,6 @@ class RTree(object):
     def handle_overflow(self, node):
         node1, node2 = self.split(node)          # Split the overflowing node into two
        
-        # When the root overflows, grow the tree upward by creating a new root
         if node.is_root():
             new_root = Node()
             self.add_child(new_root, node1)      # Attach first half as left child
@@ -158,7 +135,6 @@ class RTree(object):
             self.root = new_root                 # Promote new_root to be the tree's root
             self.update_mbr(new_root)            # Recalculate the root's MBR
         
-        # When a non-root overflows, swap it out for the two new nodes in the parent
         else:
             parent = node.parent
             parent.child_nodes.remove(node)      # Detach the old overflowing node
@@ -168,7 +144,6 @@ class RTree(object):
                 self.handle_overflow(parent)
 
     def choose_subtree(self, node, point):
-        # Pick the child whose MBR needs the smallest perimeter increase to absorb the new point
         if node.is_leaf():
             return node
         else:
@@ -247,7 +222,6 @@ class RTree(object):
         x_list = []                             # Will collect all relevant x values
         y_list = []                             # Will collect all relevant y values
         
-        # For leaves use point coordinates; for internal nodes use children's MBR corners
         if node.is_leaf():
             x_list = [point['x'] for point in node.data_points]    # x positions of stored points
             y_list = [point['y'] for point in node.data_points]    # y positions of stored points
@@ -266,25 +240,13 @@ class RTree(object):
 # BRANCH-AND-BOUND ALGORITHM
 
 def min_dist_to_mbr(qx, qy, mbr):
-    """
-    Minimum Euclidean distance from query point (qx, qy) to the given MBR.
-    Returns 0 when the query point is inside the rectangle.
-    Acts as a lower bound on the distance to any point stored within that MBR,
-    allowing entire subtrees to be pruned during BaB search.
-    """
-    # Snap the query onto the nearest point on the rectangle boundary
+
     cx = max(mbr['x1'], min(qx, mbr['x2']))      # Closest x on the MBR to the query
     cy = max(mbr['y1'], min(qy, mbr['y2']))      # Closest y on the MBR to the query
     return math.sqrt((qx - cx) ** 2 + (qy - cy) ** 2)
 
 def bab_nn(rtree, query):
-    """
-    Nearest-neighbour search using Branch-and-Bound on the R-tree.
-    - Start at the root
-    - Always go into the child MBRs in order of increasing distance to the query
-    - At leaves, check all points and update the current best
-    - When backtracking, prune any subtree whose MBR is already farther than the best distance
-    """
+
     qx, qy = query['x'], query['y']  # unpack query coordinates
 
     # Search a subtree and return (best_point, best_dist) found there
@@ -362,7 +324,6 @@ print("\n-------------------")
 print("ALGORITHM 2: Branch-and-Bound (BaB) Algorithm")
 print("-------------------\n")
  
-# Build one R-tree containing all parking spots
 rtree = RTree()                                 # Start with an empty tree
 print("build R-Tree: ")
 print("\n")
@@ -399,13 +360,10 @@ print("\n-------------------")
 print("ALGORITHM 3: BaB with Divide-and-Conquer")
 print("-------------------\n")
  
-# STEP 1: Split the dataset into two halves along the X axis
-# The cut is placed at the midpoint between the smallest and largest x values
 x_min = min(p['x'] for p in points)            # Leftmost x in the dataset
 x_max = max(p['x'] for p in points)            # Rightmost x in the dataset
 x_split = (x_min + x_max) / 2                  # Halfway point used as the dividing line
  
-# partition every point into the correct half
 left_points  = [p for p in points if p['x'] <= x_split]         # Points on or left of the line
 right_points = [p for p in points if p['x'] >  x_split]         # Points strictly right of the line
  
@@ -415,7 +373,6 @@ print("Left subspace :", len(left_points),  "points (x <=", x_split, ")")
 print("Right subspace:", len(right_points), "points (x > ", x_split, ")")
 print("\n")
  
-# STEP 2: Build one R-tree per half
 print("Building R-tree for left subspace...")
 rtree_left = RTree()                            # Empty tree for the left half
 for p in left_points:
@@ -430,8 +387,6 @@ for p in right_points:
 print("MBR of right R-tree root:", rtree_right.root.MBR)
 print("\n")
  
-# STEP 3: Run BaB on both halves for every query and cache the results
-# Format: { 'query_id' : [nearest_point, distance], ... }
 left_dict  = {}  # Nearest-neighbour results from the left R-tree
 right_dict = {}  # Nearest-neighbour results from the right R-tree
  
@@ -446,7 +401,6 @@ for query in queries:
     nn_right, dis_right = bab_nn(rtree_right, query)        # Search right half
     right_dict[qid] = [nn_right, dis_right]                 # Cache the result
  
-# STEP 4: For each query, keep whichever half returned the closer point
 with open("task_1_3_output.txt", 'w') as output_file:
     output_file.write("ALGORITHM 3: BaB with Divide-and-Conquer\n")
     output_file.write("=" * 60 + "\n")
@@ -474,7 +428,6 @@ print(time_line)
 with open("task_1_3_output.txt", 'a') as output_file:
     output_file.write(time_line + "\n")
 
-[part2.py](https://github.com/user-attachments/files/29473477/part2.py)
 
 import sys
 import math  
@@ -485,19 +438,9 @@ import numpy as np
 
 # PART 1: R-TREE INDEX
 
-
-# Maximum fanout: each node holds at most B children or data points before split.
 B = 4
 
 class Node(object):
-    """
-    One node in the R-tree.
-
-    - child_nodes: non-empty for internal nodes; empty for leaves
-    - data_points: only used at leaves (actual (id, x, y) records)
-    - MBR: axis-aligned rectangle enclosing all entries in this node
-    - parent: back-pointer used when splitting and re-linking children
-    """
 
     def __init__(self):
         self.id = 0  # Optional node identifier (not used in logic)
@@ -513,11 +456,9 @@ class Node(object):
         }
 
     def perimeter(self):
-        """Half-perimeter of MBR; used as a cheap 'area' proxy when splitting."""
         return (self.MBR['x2'] - self.MBR['x1']) + (self.MBR['y2'] - self.MBR['y1'])  # Sum of width and height
 
     def is_overflow(self):
-        """True when node exceeds capacity B and must be split."""
         if self.is_leaf():  # Leaf stores data points
             return len(self.data_points) > B  # Overflow when too many points
         return len(self.child_nodes) > B  # Internal node: too many children
@@ -530,22 +471,11 @@ class Node(object):
 
 
 class RTree(object):
-    """
-    Dynamic R-tree built by repeated insertion (not bulk-loaded).
-
-    build(points) inserts each point; BBS later walks this structure.
-    """
 
     def __init__(self):
         self.root = Node()  # Start with a single empty root node
 
     def insert(self, node, point):
-        """
-        Recursive insert: descend to a leaf, add the point, split if needed.
-
-        WHY recursive: mirrors textbook R-tree insert—internal nodes only route,
-        leaves store data, overflow propagates upward.
-        """
         if node.is_leaf():  # Reached a leaf — store the point here
             self.add_data_point(node, point)  # Append point and grow leaf MBR
             if node.is_overflow():  # Leaf exceeded capacity B
@@ -557,7 +487,6 @@ class RTree(object):
             self.update_mbr(sub_node)  # Refresh parent MBR after child changed
 
     def add_data_point(self, node, data_point):
-        """Append one point to a leaf and expand the leaf MBR to include it."""
         node.data_points.append(data_point)  # Store point in leaf entry list
         if data_point['x'] < node.MBR['x1']:  # New point extends left bound
             node.MBR['x1'] = data_point['x']  # Update minimum x
@@ -569,7 +498,6 @@ class RTree(object):
             node.MBR['y2'] = data_point['y']  # Update maximum y
 
     def add_child(self, node, child):
-        """Link an internal child and merge its MBR into the parent's MBR."""
         node.child_nodes.append(child)  # Link child under this internal node
         child.parent = node  # Set back-pointer from child to parent
         if child.MBR['x1'] < node.MBR['x1']:  # Child extends parent left
@@ -582,12 +510,6 @@ class RTree(object):
             node.MBR['y2'] = child.MBR['y2']  # Expand parent y2
 
     def handle_overflow(self, node):
-        """
-        Split an overflowing node into two, then attach them to the parent.
-
-        WHY: keeps each node bounded by B so tree height stays O(log n).
-        If the root splits, we create a new root with two children (tree grows up).
-        """
         node1, node2 = self.split(node)  # Partition entries into two nodes
         if node.is_root():  # Overflow at root — tree grows taller
             new_root = Node()  # Create new root above the two halves
@@ -604,11 +526,6 @@ class RTree(object):
                 self.handle_overflow(parent)  # Recursively split upward
 
     def choose_subtree(self, node, point):
-        """
-        At an internal node, pick the child that minimizes MBR perimeter growth.
-
-        WHY: placing close points together improves pruning for skyline search.
-        """
         if node.is_leaf():  # Should not happen at internal routing step
             return node  # Return self if called on leaf
         min_increase = sys.maxsize  # Track best (smallest) perimeter increase
@@ -620,19 +537,12 @@ class RTree(object):
         return best_child  # Route insert into best_child
 
     def peri_increase(self, node, point):
-        """How much the half-perimeter grows if we add `point` into `node`."""
         origin_mbr = node.MBR  # Current bounding box
         x1, x2, y1, y2 = origin_mbr['x1'], origin_mbr['x2'], origin_mbr['y1'], origin_mbr['y2']  # Unpack corners
         return (max([x1, x2, point['x']]) - min([x1, x2, point['x']]) +  # New width minus old width
                 max([y1, y2, point['y']]) - min([y1, y2, point['y']])) - node.perimeter()  # New height minus old
 
     def split(self, node):
-        """
-        Quadratic-style split: try several sort orders and partition positions.
-
-        WHY: we want two tight groups (low total perimeter) while keeping at
-        least ceil(0.4*B) entries in each side (assignment constraint).
-        """
         best_s1 = Node()  # Best first partition found so far
         best_s2 = Node()  # Best second partition found so far
         best_perimeter = sys.maxsize  # Lowest combined perimeter seen
@@ -684,7 +594,6 @@ class RTree(object):
         return best_s1, best_s2  # Return the two new nodes
 
     def update_mbr(self, node):
-        """Recompute MBR from all leaf points or all child MBRs."""
         if node.is_leaf():  # Leaf: bound all data points
             x_list = [point['x'] for point in node.data_points]  # All x coordinates
             y_list = [point['y'] for point in node.data_points]  # All y coordinates
@@ -699,7 +608,6 @@ class RTree(object):
         }
 
     def build(self, points):
-        """Insert every point one-by-one starting at the root."""
         for point in tqdm(points, desc='Building R-tree', disable=True):  # One insert per point
             self.insert(self.root, point)  # Start from root each time
 
@@ -711,12 +619,6 @@ OUTPUT_DIR = 'output/task2'  # Where to write result files
 
 
 def load_points(filepath):
-    """
-    Load dataset from disk.
-
-    WHY: all algorithms need the same list of dicts {'id', 'x', 'y'}.
-    HOW: skip malformed lines; parse id as int and coordinates as float.
-    """
     points = []  # List to store all loaded points
     with open(filepath, 'r') as f:  # Open dataset file for reading
         for line in f:  # Process each line
@@ -736,24 +638,11 @@ def load_points(filepath):
 
 
 def dominates(p, q):
-    """
-    Pareto dominance for minimization on both x and y.
-
-    WHY: skyline = points not dominated by any other point.
-    p dominates q if p is at least as good on both axes and strictly better on one.
-    """
     return (p['x'] <= q['x'] and p['y'] <= q['y'] and  # p is no worse than q on x and y
             (p['x'] < q['x'] or p['y'] < q['y']))  # p is strictly better on at least one axis
 
 
 def mbr_dominated(mbr, skyline):
-    """
-    BBS pruning rule for an MBR (region).
-
-    WHY: if some skyline point s lies at or below the MBR's lower-left corner,
-    every point inside the rectangle is dominated by s, so we never open this node.
-    HOW: compare s.x <= mbr.x1 and s.y <= mbr.y1 (assignment BBS rule).
-    """
     for s in skyline:  # Check each current skyline point
         if s['x'] <= mbr['x1'] and s['y'] <= mbr['y1']:  # s dominates all points in MBR
             return True  # Entire region can be skipped
@@ -761,22 +650,14 @@ def mbr_dominated(mbr, skyline):
 
 
 def mindist_point(point):
-    """Best-first priority for a point: x + y (smaller is more promising)."""
     return point['x'] + point['y']  # Lower-left style distance for minimization
 
 
 def mindist_mbr(mbr):
-    """Best-first priority for a region: lower-left corner x1 + y1."""
     return mbr['x1'] + mbr['y1']  # Best-first key for lecture-style sorted candidate list
 
 
 def add_skyline_point(skyline, point):
-    """
-    Insert `point` into the running skyline list.
-
-    WHY: when we confirm a point is not dominated, remove any old skyline points
-    that it now dominates, then append it.
-    """
     if any(dominates(s, point) for s in skyline):  # Already dominated by existing skyline
         return skyline  # Unchanged list
     skyline = [s for s in skyline if not dominates(point, s)]  # Drop points dominated by new one
@@ -785,12 +666,6 @@ def add_skyline_point(skyline, point):
 
 
 def sequential_skyline(points):
-    """
-    Algorithm 1 — Brute-force sequential scan.
-
-    WHY: correct baseline to verify BBS and divide-and-conquer results.
-    HOW: for each point i, vectorize "is any other point dominating i?" with numpy.
-    """
     n = len(points)  # Total number of points
     if n == 0:  # Empty dataset
         return []  # No skyline points
@@ -813,19 +688,9 @@ def sequential_skyline(points):
 
 
 def bbs_skyline(rtree):
-    """
-    Algorithm 2 — Branch-and-Bound Skyline on a built R-tree.
-
-    STEPS:
-      1. Seed candidate list with root children (or root points if root is a leaf).
-      2. Sort by mindist and pop the smallest entry.
-      3. If it is an MBR node: prune if mbr_dominated; else push children/points.
-      4. If it is a point: add to skyline when not dominated.
-    WHY: best-first order + MBR pruning reduces work vs scanning all points.
-    """
     skyline = []  # Running set of skyline points found so far
-    candidates = []  # Lecture-style candidate list: [('node'|'point', obj), ...]
-
+    candidates = []  
+    
     root = rtree.root  # Start traversal from tree root
     if root.is_leaf():  # Tree is a single leaf (small dataset)
         for p in root.data_points:  # Push every point in root leaf
@@ -860,13 +725,6 @@ def bbs_skyline(rtree):
 
 
 def merge_skylines_1d(skylines):
-    """
-    Merge partial skylines after divide-and-conquer.
-
-    WHY: points in left and right halves each have local skylines; after sorting
-    by x, a point is globally non-dominated iff its y is strictly less than the
-    minimum y seen so far (1D screening along increasing x).
-    """
     combined = []  # Pool of all candidate points from subproblems
     for s in skylines:  # For each partial skyline list
         combined.extend(s)  # Append all its points
@@ -881,21 +739,11 @@ def merge_skylines_1d(skylines):
 
 
 def bbs_divide_and_conquer(points):
-    """
-    Algorithm 3 — Split on median x, run BBS on each half, merge.
-
-    WHY: smaller trees per half can be faster; merge is linear after sort.
-    HOW:
-      1. Partition points at median x into left / right.
-      2. Build R-tree + BBS on each partition.
-      3. merge_skylines_1d combines the two candidate skylines.
-    """
     xs = [p['x'] for p in points]  # All x coordinates for median
     median = float(np.median(xs))  # Split plane at median x
     left = [p for p in points if p['x'] <= median]  # Left half points
     right = [p for p in points if p['x'] > median]  # Right half points
 
-    # Edge case: all points share the same x — force a non-empty split
     if not left:  # Edge case: nothing on left of median
         left, right = right[:len(right) // 2], right[len(right) // 2:]  # Force balanced split
     if not right:  # Edge case: nothing on right of median
@@ -926,11 +774,6 @@ def write_output(filepath, algorithm_name, skyline, elapsed, start_time_str):
 
 
 def main():
-    """
-    Run all three algorithms on the chosen dataset and compare results.
-
-    Flow: load → sequential → BBS → BBS+DC → consistency check on skyline ids.
-    """
     dataset_path = f'{DATASET_DIR}/{DATASET_NAME}.txt'  # Full path to input file
 
     print(f"Task 2 - Skyline Search")  # Console title
@@ -941,7 +784,6 @@ def main():
     print(f"Loaded {len(points)} points\n")  # Report dataset size
 
     # --- Step A: Sequential scan ---
-    # WHY: O(n^2) baseline; proves correctness before using the R-tree.
     print("Running sequential scan...")  # Status message
     start_seq = time.time()  # Start timestamp for output + runtime
     start_seq_str = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(start_seq))  # Start time
@@ -954,7 +796,6 @@ def main():
     print(f"  Output: {out_seq}\n")  # Print output file location
 
     # --- Step B: Build one R-tree, run BBS ---
-    # WHY: index groups points so BBS can prune whole MBRs; should beat sequential.
     print("Running BBS with R-tree...")  # Status message
     start_bbs = time.time()  # Start timestamp for output + runtime
     start_bbs_str = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(start_bbs))  # Start time
@@ -969,7 +810,6 @@ def main():
     print(f"  Output: {out_bbs}\n")  # Print output path
 
     # --- Step C: Divide-and-conquer + BBS per half ---
-    # WHY: smaller sub-trees; merge step stitches local skylines into global answer.
     print("Running BBS with divide-and-conquer...")  # Status message
     start_dc = time.time()  # Start timestamp for output + runtime
     start_dc_str = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(start_dc))  # Start time
@@ -982,7 +822,6 @@ def main():
     print(f"  Output: {out_dc}\n")  # Print output path
 
     # --- Step D: Verify all three agree (same set of point ids) ---
-    # WHY: if ids differ, one algorithm has a logic bug.
     ids_seq = {p['id'] for p in skyline_seq}  # Skyline ids from sequential
     ids_bbs = {p['id'] for p in skyline_bbs}  # Skyline ids from BBS
     ids_dc = {p['id'] for p in skyline_dc}  # Skyline ids from divide-and-conquer
