@@ -6,9 +6,7 @@ import math
 import sys
 import time
 
-# ---------------------------------------------------------------
 # LOAD DATA
-# ---------------------------------------------------------------
 
 # Load parking location data from file
 # Each line contains: ID, X coordinate, Y coordinate
@@ -46,10 +44,7 @@ print("Total parking points loaded:", n)
 print("Total queries loaded:", len(queries))
 print("\n")
 
-
-# ---------------------------------------------------------------
 # R-TREE FUNCTION
-# ---------------------------------------------------------------
 
 # --- Node class ---
 
@@ -268,9 +263,7 @@ class RTree(object):
         }
         node.MBR = new_mbr         # Replace the old MBR with the freshly computed one
 
-# ---------------------------------------------------------------
 # BRANCH-AND-BOUND ALGORITHM
-# ---------------------------------------------------------------
 
 def min_dist_to_mbr(qx, qy, mbr):
     """
@@ -327,9 +320,7 @@ def bab_nn(rtree, query):
     # Start the search from the root; no best point yet, distance is infinity
     return search(rtree.root, None, float('inf'))
 
-# ---------------------------------------------------------------
 # ALGORITHM 1: Sequential Scan
-# ---------------------------------------------------------------
  
 print("-------------------")
 print("ALGORITHM 1: Sequential Scan Based Method")
@@ -364,10 +355,8 @@ print(time_line)
 with open("task_1_1_output.txt", 'a') as output_file:
     output_file.write(time_line + "\n")
  
- 
-# ---------------------------------------------------------------
+
 # ALGORITHM 2: BaB with R-tree
-# ---------------------------------------------------------------
  
 print("\n-------------------")
 print("ALGORITHM 2: Branch-and-Bound (BaB) Algorithm")
@@ -404,9 +393,7 @@ print(time_line)
 with open("task_1_2_output.txt", 'a') as output_file:
     output_file.write(time_line + "\n")
  
-# ---------------------------------------------------------------
 # ALGORITHM 3: BaB with Divide-and-Conquer
-# ---------------------------------------------------------------
 
 print("\n-------------------")
 print("ALGORITHM 3: BaB with Divide-and-Conquer")
@@ -496,18 +483,11 @@ from tqdm import tqdm
 
 import numpy as np  
 
-# =============================================================================
 # PART 1: R-TREE INDEX
-# =============================================================================
-# WHY: Skyline BBS visits points in best-first order and prunes whole regions.
-#      An R-tree groups nearby points into Minimum Bounding Rectangles (MBRs)
-#      so we can skip entire subtrees when an MBR cannot contain a skyline point.
-# HOW: We insert points top-down, split overflowing nodes, and expose .root for
-#      the BBS candidate list to traverse internal nodes and leaf entries.
+
 
 # Maximum fanout: each node holds at most B children or data points before split.
 B = 4
-
 
 class Node(object):
     """
@@ -723,12 +703,7 @@ class RTree(object):
         for point in tqdm(points, desc='Building R-tree', disable=True):  # One insert per point
             self.insert(self.root, point)  # Start from root each time
 
-
-# =============================================================================
 # PART 2: SKYLINE ALGORITHMS
-# =============================================================================
-# WHY: Compare three methods—naive baseline, index-guided BBS, and partitioned BBS.
-# HOW: Load one dataset, run each algorithm, write timed outputs, verify same ids.
 
 DATASET_NAME = 'city3'  # 3 + 3 + 8
 DATASET_DIR = 'Datasets/Task2_Datasets'  # Input data path
